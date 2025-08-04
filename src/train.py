@@ -2,60 +2,65 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
+from time import time
 from src.data_loader import download_dataset, create_dataloaders
 from src.model import FaceRecognitionCNN
 from src.visualization import plot_training_curves, plot_confusion_matrix
 import os
 
-def train_model(epochs=20, lr=0.001, device="cuda" if torch.cuda.is_available() else "cpu"):
-    # Baixa o dataset
+def train_model(epochs=20, lr=0.001, batch_size=64, device="cuda" if torch.cuda.is_available() else "cpu"):
+    print("=" * 50)
+    print("Iniciando treinamento do modelo de reconhecimento facial")
+    print(f"Dispositivo: {device}")
+    print(f"Épocas: {epochs} | Taxa de aprendizado: {lr} | Batch size: {batch_size}")
+    print("=" * 50)
+
+    print(f"Usa Cuda?: {torch.cuda.is_available()}")
+
+    # Baixa e carrega dataset
     dataset_path = download_dataset()
+    print(f"Dataset carregado de: {dataset_path}")
+    train_loader, val_loader, num_classes = create_dataloaders(dataset_path, batch_size=batch_size)
+    print(f"Total de classes detectadas: {num_classes}")
+    print(f"Tamanho do treino: {len(train_loader.dataset)} | Validação: {len(val_loader.dataset)}")
 
-    # Cria DataLoaders
-    train_loader, val_loader, num_classes = create_dataloaders(dataset_path)
-
-    # Cria o modelo e envia para GPU (se disponível)
+    # Inicializa modelo
     model = FaceRecognitionCNN(num_classes).to(device)
+    print(f"Modelo criado: {model}")
 
-    # Define a função de perda e otimizador
-    criterion = nn.CrossEntropyLoss()  # Perda para classificação multiclasse
+    # Define função de perda e otimizador
+    criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    # Listas para guardar histórico
+    # Histórico
     train_loss_history, val_loss_history = [], []
     train_acc_history, val_acc_history = [], []
 
     # Loop de treinamento
     for epoch in range(epochs):
-        model.train()  # Coloca modelo em modo treino
+        start_time = time()
+        print(f"\n--- Época {epoch+1}/{epochs} ---")
+        model.train()
         running_loss, correct, total = 0.0, 0, 0
 
-        # Loop por batch no treino
-        for images, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs} [Treino]"):
-            images, labels = images.to(device), labels.to(device)
-
-            # Zera gradientes
+        # Treinamento por batch
+        for batch_idx, (images, labels) in enumerate(tqdm(train_loader, desc=f"Treinando Época {epoch+1}")):
+            images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
             optimizer.zero_grad()
-
-            # Forward
             outputs = model(images)
-
-            # Calcula perda
             loss = criterion(outputs, labels)
-
-            # Backpropagation
             loss.backward()
-
-            # Atualiza pesos
             optimizer.step()
 
-            # Acumula métricas
             running_loss += loss.item()
             _, preds = torch.max(outputs, 1)
             correct += (preds == labels).sum().item()
             total += labels.size(0)
 
-        # Calcula métricas de treino
+            # Print parcial a cada 50 batches
+            if (batch_idx + 1) % 50 == 0:
+                print(f"Batch {batch_idx+1}/{len(train_loader)} - Loss: {loss.item():.4f}")
+
         train_loss = running_loss / len(train_loader)
         train_acc = correct / total
 
@@ -64,7 +69,7 @@ def train_model(epochs=20, lr=0.001, device="cuda" if torch.cuda.is_available() 
         val_loss, val_correct, val_total = 0.0, 0, 0
         with torch.no_grad():
             for images, labels in val_loader:
-                images, labels = images.to(device), labels.to(device)
+                images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
                 outputs = model(images)
                 loss = criterion(outputs, labels)
                 val_loss += loss.item()
@@ -74,10 +79,13 @@ def train_model(epochs=20, lr=0.001, device="cuda" if torch.cuda.is_available() 
         val_loss /= len(val_loader)
         val_acc = val_correct / val_total
 
-        # Exibe métricas da época
-        print(f"Epoch [{epoch+1}/{epochs}] | Loss: {train_loss:.4f} | Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.4f}")
+        # Tempo gasto
+        epoch_time = time() - start_time
+        print(f"[Época {epoch+1}] Treino -> Loss: {train_loss:.4f} | Acc: {train_acc:.4f}")
+        print(f"[Época {epoch+1}] Validação -> Loss: {val_loss:.4f} | Acc: {val_acc:.4f}")
+        print(f"Tempo da época: {epoch_time:.2f} segundos")
 
-        # Salva histórico
+        # Guarda histórico
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
         train_acc_history.append(train_acc)
@@ -86,8 +94,12 @@ def train_model(epochs=20, lr=0.001, device="cuda" if torch.cuda.is_available() 
     # Salva modelo treinado
     os.makedirs("models", exist_ok=True)
     torch.save(model.state_dict(), "models/face_recognition.pth")
-    print("Modelo salvo em models/face_recognition.pth")
+    print("\nTreinamento concluído!")
+    print("Modelo salvo em: models/face_recognition.pth")
 
-    # Plota gráficos e matriz de confusão
+    # Visualizações
     plot_training_curves(train_loss_history, val_loss_history, train_acc_history, val_acc_history)
     plot_confusion_matrix(model, val_loader, device)
+
+if __name__ == "__main__":
+    train_model()

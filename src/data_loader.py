@@ -1,14 +1,32 @@
+import zipfile
+
 import kagglehub
+from sympy.printing.pytorch import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import os
 
 def download_dataset():
-    # Baixa o dataset do Kaggle automaticamente e retorna o caminho local
     dataset = "atulanandjha/lfwpeople"
-    path = kagglehub.dataset_download(dataset)
-    print(f"Dataset baixado em: {path}")
-    return path
+    zip_path = kagglehub.dataset_download(dataset)
+    print(f"Dataset baixado em: {zip_path}")
+
+    # Caminho da pasta onde vai extrair (mesma pasta do zip, sem extensão)
+    extract_path = zip_path.replace(".zip", "") + "\\lfw-funneled"
+
+    print(f"Dataset baixado em: {extract_path}")
+
+    # Se já não foi extraído, extrai agora
+    if not os.path.exists(extract_path):
+        print(f"Extraindo {zip_path} para {extract_path}...")
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_path)
+        print("Extração concluída.")
+    else:
+        print("Dataset já extraído.")
+
+    # Retorna o caminho da pasta extraída
+    return extract_path
 
 def create_dataloaders(dataset_path, img_size=96, batch_size=32):
     """
