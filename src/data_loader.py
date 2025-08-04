@@ -26,7 +26,7 @@ def download_dataset():
         print("Dataset já extraído.")
 
     # Retorna o caminho da pasta extraída
-    return extract_path
+    return extract_path + "\\lfw_funneled"
 
 def create_dataloaders(dataset_path, img_size=96, batch_size=32):
     """
@@ -50,17 +50,20 @@ def create_dataloaders(dataset_path, img_size=96, batch_size=32):
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
 
-    # Lê imagens organizadas por pastas (cada pasta = uma classe)
-    train_dataset = datasets.ImageFolder(root=dataset_path, transform=transform_train)
-    train_dataset.samples = [(path, target) for path, target in train_dataset.samples]
+    # 1. Carrega uma vez
+    full_dataset = datasets.ImageFolder(root=dataset_path, transform=transform_train)
 
-    val_dataset = datasets.ImageFolder(root=dataset_path, transform=transform_val)
+    # 2. Split consistente
+    val_size = int(0.2 * len(full_dataset))
+    train_size = len(full_dataset) - val_size
+    train_dataset, val_dataset = torch.utils.data.random_split(
+        full_dataset, [train_size, val_size],
+        generator=torch.Generator().manual_seed(42)  # fixar o split
+    )
 
-
-    # Divide dataset em treino e validação (80% / 20%)
-    val_size = int(0.2 * len(train_dataset))
-    train_size = len(train_dataset) - val_size
-    train_dataset, val_dataset = torch.utils.data.random_split(train_dataset, [train_size, val_size])
+    # 3. Aplique transformações ao acessar os dados
+    train_dataset.dataset.transform = transform_train
+    val_dataset.dataset.transform = transform_val
 
     # Cria DataLoaders para carregar os dados em batches
     train_loader = DataLoader(
