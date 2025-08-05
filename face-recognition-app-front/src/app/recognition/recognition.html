@@ -1,0 +1,34 @@
+<div class="container mt-4">
+  <h2>Reconhecimento Facial</h2>
+    <h3 class="mt-5">Escolha uma imagem de teste:</h3>
+
+    <div style="display: flex; gap: 10px;">
+      <img *ngFor="let face of faces"
+           [src]="face"
+           width="100"
+           height="100"
+           (click)="sendImage(face)"
+           style="cursor: pointer; border: 1px solid #ccc;" />
+    </div>
+
+    <hr>
+
+    <h2>Ou envie uma imagem sua:</h2>
+    <input type="file" (change)="onFileSelected($event)" />
+
+    <hr>
+
+  <!-- Botão de envio -->
+  <button class="btn btn-primary" (click)="sendToAPI()" [disabled]="!selectedFile">Enviar</button>
+
+  <h3 class="mt-4"> Top 5 probabilidades de rosto </h3>
+
+  @for (classe of top5; track top5) {
+    <div class="alert alert-info mt-3">
+      Classe: <strong>{{ classe.class }}</strong><br />
+      Probabilidade: <strong>{{ classe.probability | percent:'1.2-2' }}</strong>
+    </div>
+  } @empty {
+    <li>There are no items.</li>
+  }
+</div>

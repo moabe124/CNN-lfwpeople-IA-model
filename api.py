@@ -8,7 +8,9 @@ import io
 from src.data_loader import download_dataset, load_class_names
 from src.model import FaceRecognitionCNN
 from torchvision import transforms
+from src.classNameList import class_names
 import torch
+from fastapi.middleware.cors import CORSMiddleware
 
 # Define transform para manter consistência com treino/validação
 transform = transforms.Compose([
@@ -17,20 +19,24 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.5]*3, std=[0.5]*3)
 ])
 
-# Dataset e classes
-dataset_path = download_dataset()
-class_names = load_class_names(dataset_path)
-num_classes = len(class_names)
-
-print(f"numero de classes: {num_classes}")
+print(f"numero de classes: {84585}")
 
 # Modelo
 device = torch.device(device="cuda" if torch.version.hip else "cpu")
-model = FaceRecognitionCNN(num_classes)
+model = FaceRecognitionCNN(84585)
 model.load_state_dict(torch.load("models/face_recognition.pth", map_location=device))
 model.eval().to(device)
 
 app = FastAPI()
+
+# Permite qualquer origem, qualquer método, qualquer header
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite todas as origens
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos os métodos (GET, POST, etc)
+    allow_headers=["*"],  # Permite todos os headers
+)
 
 @app.post("/predict")
 async def predict_image(file: UploadFile = File(...)):
