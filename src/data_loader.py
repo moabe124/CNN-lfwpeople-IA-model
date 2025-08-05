@@ -49,9 +49,6 @@ def create_dataloaders(dataset_path, img_size=112, batch_size=32):
     # Transformações para os dados de treino (aumentam variedade e robustez)
     transform_train = transforms.Compose([
         transforms.Resize((img_size, img_size)),         # Redimensiona imagens
-        transforms.RandomHorizontalFlip(),               # Inverte horizontalmente aleatoriamente
-        transforms.RandomRotation(10),                   # Rotaciona levemente
-        transforms.ColorJitter(brightness=0.2, contrast=0.2),  # Varia iluminação e contraste
         transforms.ToTensor(),                           # Converte para tensor (PyTorch)
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normaliza valores (-1 a 1)
     ])
@@ -93,3 +90,10 @@ def create_dataloaders(dataset_path, img_size=112, batch_size=32):
 
     # Retorna os DataLoaders e a quantidade de classes
     return train_loader, val_loader, len(train_dataset.dataset.classes)
+
+def load_class_names(dataset_path, transform=None):
+    """
+    Retorna os nomes das classes com base no diretório do dataset.
+    """
+    dataset = datasets.ImageFolder(root=dataset_path, transform=transform)
+    return dataset.classes

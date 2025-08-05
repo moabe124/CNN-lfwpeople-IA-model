@@ -1,3 +1,3 @@
 Para rodar a api:
 
-uvicorn main:app --reload
+uvicorn api:app --reload
