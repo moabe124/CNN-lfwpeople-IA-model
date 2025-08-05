@@ -1,4 +1,4 @@
-import zipfile
+import tarfile
 
 import kagglehub
 from sympy.printing.pytorch import torch
@@ -7,28 +7,41 @@ from torch.utils.data import DataLoader
 import os
 
 def download_dataset():
-    dataset = "atulanandjha/lfwpeople"
-    zip_path = kagglehub.dataset_download(dataset)
-    print(f"Dataset baixado em: {zip_path}")
+    # dataset = "atulanandjha/lfwpeople"
+    # zip_path = kagglehub.dataset_download(dataset)
+    # print(f"Dataset baixado em: {zip_path}")
+    #
+    # # Pasta onde o zip está
+    # base_path = os.path.dirname(zip_path)
+    # zip_file_name = os.path.join(zip_path, "lfw-funneled.tgz")
+    # extract_path = os.path.join(base_path, "3")
+    # extract_path = os.path.join(extract_path, "lfw_funneled")
+    # extract_path = os.path.join(extract_path, "lfw_funneled")
 
-    # Caminho da pasta onde vai extrair (mesma pasta do zip, sem extensão)
-    extract_path = zip_path.replace(".zip", "") + "\\lfw-funneled"
+    import kagglehub
 
-    print(f"Dataset baixado em: {extract_path}")
+    # Download latest version
+    zip_path = kagglehub.dataset_download("yakhyokhuja/ms1m-arcface-dataset")
 
-    # Se já não foi extraído, extrai agora
-    if not os.path.exists(extract_path):
-        print(f"Extraindo {zip_path} para {extract_path}...")
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_path)
-        print("Extração concluída.")
-    else:
-        print("Dataset já extraído.")
+    print("Path to dataset files:", zip_path)
 
-    # Retorna o caminho da pasta extraída
-    return extract_path + "\\lfw_funneled"
+    base_path = os.path.dirname(zip_path)
 
-def create_dataloaders(dataset_path, img_size=96, batch_size=32):
+    extract_path = os.path.join("/home/moabe/.cache/kagglehub/datasets/yakhyokhuja/ms1m-arcface-dataset/versions/1/ms1m-arcface", "")
+
+    # Extrai se ainda não existir
+    # if not os.path.exists(extract_path):
+    #     print(f"Extraindo {zip_file_name} para {base_path}...")
+    #     with tarfile.open(zip_file_name, "r:gz") as tar:
+    #         tar.extractall(path=extract_path)
+    #     print("Extração concluída.")
+    # else:
+    #     print("Dataset já extraído.")
+
+    # Retorna o caminho da pasta com as imagens
+    return extract_path
+
+def create_dataloaders(dataset_path, img_size=112, batch_size=32):
     """
     Cria DataLoaders para treino e validação com data augmentation.
     """
@@ -50,20 +63,17 @@ def create_dataloaders(dataset_path, img_size=96, batch_size=32):
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
 
-    # 1. Carrega uma vez
-    full_dataset = datasets.ImageFolder(root=dataset_path, transform=transform_train)
+    # Lê imagens organizadas por pastas (cada pasta = uma classe)
+    train_dataset = datasets.ImageFolder(root=dataset_path, transform=transform_train)
+    train_dataset.samples = [(path, target) for path, target in train_dataset.samples]
 
-    # 2. Split consistente
-    val_size = int(0.2 * len(full_dataset))
-    train_size = len(full_dataset) - val_size
-    train_dataset, val_dataset = torch.utils.data.random_split(
-        full_dataset, [train_size, val_size],
-        generator=torch.Generator().manual_seed(42)  # fixar o split
-    )
+    val_dataset = datasets.ImageFolder(root=dataset_path, transform=transform_val)
 
-    # 3. Aplique transformações ao acessar os dados
-    train_dataset.dataset.transform = transform_train
-    val_dataset.dataset.transform = transform_val
+
+    # Divide dataset em treino e validação (80% / 20%)
+    val_size = int(0.2 * len(train_dataset))
+    train_size = len(train_dataset) - val_size
+    train_dataset, val_dataset = torch.utils.data.random_split(train_dataset, [train_size, val_size])
 
     # Cria DataLoaders para carregar os dados em batches
     train_loader = DataLoader(

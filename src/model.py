@@ -10,7 +10,7 @@ class FaceRecognitionCNN(nn.Module):
         self.conv3 = nn.Conv2d(64, 128, 3, padding=1)    # 64 -> 128 filtros
         self.pool = nn.MaxPool2d(2, 2)                   # Reduz tamanho da imagem pela metade
         self.dropout = nn.Dropout(0.5)                   # Evita overfitting zerando neurônios aleatórios
-        self.fc1 = nn.Linear(128 * 12 * 12, 128)         # Camada totalmente conectada
+        self.fc1 = nn.Linear(128 * 14 * 14, 128)         # Camada totalmente conectada
         self.fc2 = nn.Linear(128, num_classes)           # Saída com número de classes
 
     def forward(self, x):
